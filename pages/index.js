@@ -34,7 +34,7 @@ export default function Home() {
   return (
     <div>
       <Head>
-        <title>OpenAI Quickstart</title>
+        <title>Recipe Generator</title>
         <link rel="icon" href="/cookbot.png" />
       </Head>
 
