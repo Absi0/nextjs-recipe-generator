@@ -1,39 +1,39 @@
-import { Configuration, OpenAIApi } from "openai";
+import OpenAI from "openai";
 
-const configuration = new Configuration({
+const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
-const openai = new OpenAIApi(configuration);
 
-export default async function (req, res) {
-  if (!configuration.apiKey) {
+export default async function handler(req, res) {
+  if (!process.env.OPENAI_API_KEY) {
     res.status(500).json({
       error: {
-        message: "OpenAI API key not configured, please follow instructions in README.md",
-      }
+        message: "OpenAI API key not configured, please add it to .env.local",
+      },
     });
     return;
   }
 
-  const ingredient = req.body.ingredient || '';
+  const ingredient = req.body.ingredient || "";
   if (ingredient.trim().length === 0) {
     res.status(400).json({
       error: {
         message: "Please enter a valid ingredient",
-      }
+      },
     });
     return;
   }
 
   try {
-    const completion = await openai.createCompletion({
-      model: "text-davinci-003",
+    const completion = await openai.completions.create({
+      model: "gpt-3.5-turbo-instruct", // ✅ updated model
       prompt: generatePrompt(ingredient),
       temperature: 0.6,
+      max_tokens: 200,
     });
-    res.status(200).json({ result: completion.data.choices[0].text });
-  } catch(error) {
-    // Consider adjusting the error handling logic for your use case
+
+    res.status(200).json({ result: completion.choices[0].text.trim() });
+  } catch (error) {
     if (error.response) {
       console.error(error.response.status, error.response.data);
       res.status(error.response.status).json(error.response.data);
@@ -41,8 +41,8 @@ export default async function (req, res) {
       console.error(`Error with OpenAI API request: ${error.message}`);
       res.status(500).json({
         error: {
-          message: 'An error occurred during your request.',
-        }
+          message: "An error occurred during your request.",
+        },
       });
     }
   }
@@ -50,14 +50,13 @@ export default async function (req, res) {
 
 function generatePrompt(ingredient) {
   const capitalizedIngredient =
-  ingredient[0].toUpperCase() + ingredient.slice(1).toLowerCase();
-  return `Suggest three generic recipes for the ingredients entered.
+    ingredient[0].toUpperCase() + ingredient.slice(1).toLowerCase();
+  return `Suggest three easy recipes for the given ingredients.
 
-  ingredient: potato cream cheese Onion
-  Recipes: Mashed potato recipe with cream cheese, Onion and potato hash, Baked Fries
-  ingredient: garlic pasta chicken
-  Recipes: chicken, tomato and pasta bake, Easy Garlic Chicken Pasta, Garlic butter chicken pesto pasta
-  ingredient: ${capitalizedIngredient}
-  Recipes:`;
-    
+ingredient: potato cream cheese onion
+Recipes: Mashed potatoes with cream cheese, Potato and onion hash, Baked cheesy fries
+ingredient: garlic pasta chicken
+Recipes: Chicken tomato pasta bake, Easy garlic chicken pasta, Garlic butter chicken pesto pasta
+ingredient: ${capitalizedIngredient}
+Recipes:`;
 }
