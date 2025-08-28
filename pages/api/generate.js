@@ -9,64 +9,26 @@ const openai = new OpenAIApi(configuration);
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
-    return res.status(405).json({ error: "Only POST requests allowed" });
-  }
-
-  if (!configuration.apiKey) {
-    return res.status(500).json({
-      error: {
-        message:
-          "OpenAI API key not configured, please add it in your environment variables.",
-      },
-    });
+    return res.status(405).json({ error: "Method not allowed" });
   }
 
   const ingredient = req.body.ingredient || "";
   if (ingredient.trim().length === 0) {
-    return res.status(400).json({
-      error: { message: "Please enter a valid ingredient." },
-    });
+    return res.status(400).json({ error: "Please enter a valid ingredient." });
   }
 
   try {
     const completion = await openai.createCompletion({
-      model: "text-davinci-003",
-      prompt: generatePrompt(ingredient),
+      model: "gpt-3.5-turbo-instruct", // ✅ replacement for text-davinci-003
+      prompt: `Suggest three easy recipes using the following ingredients: ${ingredient}`,
       max_tokens: 200,
-      temperature: 0.6,
+      temperature: 0.7,
     });
 
-    // Return result safely
     const text = completion.data.choices[0]?.text?.trim();
     res.status(200).json({ result: text });
   } catch (error) {
-    console.error("OpenAI API error:", error);
-
-    if (error.response) {
-      return res
-        .status(error.response.status)
-        .json(error.response.data);
-    } else {
-      return res.status(500).json({
-        error: {
-          message: "Something went wrong with the request.",
-        },
-      });
-    }
+    console.error(error.response ? error.response.data : error.message);
+    res.status(500).json({ error: "Something went wrong." });
   }
-}
-
-function generatePrompt(ingredient) {
-  const capitalizedIngredient =
-    ingredient[0].toUpperCase() + ingredient.slice(1).toLowerCase();
-  return `Suggest three generic recipes for the ingredients entered.
-
-ingredient: potato cream cheese onion
-Recipes: Mashed potato with cream cheese, Onion and potato hash, Baked Fries
-
-ingredient: garlic pasta chicken
-Recipes: Chicken tomato pasta bake, Easy Garlic Chicken Pasta, Garlic butter chicken pesto pasta
-
-ingredient: ${capitalizedIngredient}
-Recipes:`;
 }
