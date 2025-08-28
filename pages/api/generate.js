@@ -1,47 +1,55 @@
-import OpenAI from "openai";
+// pages/api/generate.js
+import { Configuration, OpenAIApi } from "openai";
 
-const openai = new OpenAI({
+const configuration = new Configuration({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
+const openai = new OpenAIApi(configuration);
+
 export default async function handler(req, res) {
-  if (!process.env.OPENAI_API_KEY) {
-    res.status(500).json({
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Only POST requests allowed" });
+  }
+
+  if (!configuration.apiKey) {
+    return res.status(500).json({
       error: {
-        message: "OpenAI API key not configured, please add it to .env.local",
+        message:
+          "OpenAI API key not configured, please add it in your environment variables.",
       },
     });
-    return;
   }
 
   const ingredient = req.body.ingredient || "";
   if (ingredient.trim().length === 0) {
-    res.status(400).json({
-      error: {
-        message: "Please enter a valid ingredient",
-      },
+    return res.status(400).json({
+      error: { message: "Please enter a valid ingredient." },
     });
-    return;
   }
 
   try {
-    const completion = await openai.completions.create({
-      model: "gpt-3.5-turbo-instruct", // ✅ updated model
+    const completion = await openai.createCompletion({
+      model: "text-davinci-003",
       prompt: generatePrompt(ingredient),
-      temperature: 0.6,
       max_tokens: 200,
+      temperature: 0.6,
     });
 
-    res.status(200).json({ result: completion.choices[0].text.trim() });
+    // Return result safely
+    const text = completion.data.choices[0]?.text?.trim();
+    res.status(200).json({ result: text });
   } catch (error) {
+    console.error("OpenAI API error:", error);
+
     if (error.response) {
-      console.error(error.response.status, error.response.data);
-      res.status(error.response.status).json(error.response.data);
+      return res
+        .status(error.response.status)
+        .json(error.response.data);
     } else {
-      console.error(`Error with OpenAI API request: ${error.message}`);
-      res.status(500).json({
+      return res.status(500).json({
         error: {
-          message: "An error occurred during your request.",
+          message: "Something went wrong with the request.",
         },
       });
     }
@@ -51,12 +59,14 @@ export default async function handler(req, res) {
 function generatePrompt(ingredient) {
   const capitalizedIngredient =
     ingredient[0].toUpperCase() + ingredient.slice(1).toLowerCase();
-  return `Suggest three easy recipes for the given ingredients.
+  return `Suggest three generic recipes for the ingredients entered.
 
 ingredient: potato cream cheese onion
-Recipes: Mashed potatoes with cream cheese, Potato and onion hash, Baked cheesy fries
+Recipes: Mashed potato with cream cheese, Onion and potato hash, Baked Fries
+
 ingredient: garlic pasta chicken
-Recipes: Chicken tomato pasta bake, Easy garlic chicken pasta, Garlic butter chicken pesto pasta
+Recipes: Chicken tomato pasta bake, Easy Garlic Chicken Pasta, Garlic butter chicken pesto pasta
+
 ingredient: ${capitalizedIngredient}
 Recipes:`;
 }
